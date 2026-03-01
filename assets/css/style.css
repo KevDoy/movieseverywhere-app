@@ -1126,8 +1126,9 @@ a.format-badge-link:hover {
   background: transparent;
   border: none;
   outline: none;
-  color: #f0f0f0;
+  color: #ffffff;
   font-size: 0.88rem;
+  font-weight: 500;
   padding: 8px 0;
   min-width: 0;
 }
@@ -1140,7 +1141,14 @@ a.format-badge-link:hover {
 }
 
 .me-search-expanded input::placeholder {
-  color: rgba(200, 200, 200, 0.45);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Hide native WebKit search clear button */
+.me-search-expanded input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
 }
 
 .me-search-submit {
@@ -1151,17 +1159,26 @@ a.format-badge-link:hover {
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: rgba(200, 200, 200, 0.12);
-  color: rgba(220, 220, 220, 0.7);
+  background: rgba(200, 200, 200, 0.18);
+  color: #ffffff;
   font-size: 1.1rem;
   cursor: pointer;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 
 .me-search-submit:hover {
-  background: rgba(200, 200, 200, 0.2);
+  background: rgba(200, 200, 200, 0.28);
+}
+
+/* Clear mode: X icon */
+.me-search-submit.clear-mode {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+}
+.me-search-submit.clear-mode:hover {
+  background: rgba(255, 80, 80, 0.35);
 }
 
 @media (min-width: 768px) {
@@ -1192,7 +1209,7 @@ a.format-badge-link:hover {
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
-  color: rgba(220, 220, 220, 0.8);
+  color: #ffffff;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   /* Liquid glass */

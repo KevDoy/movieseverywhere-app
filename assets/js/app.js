@@ -56,6 +56,7 @@ const App = (() => {
     initMobileUI();
     bindHistoryNav();
     bindPosterHero();
+    bindLogoReset();
     renderGrid();
 
     if (config.posterMode === 'remote' && movies.length) {
@@ -79,6 +80,55 @@ const App = (() => {
       return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
     });
     return Promise.all(promises);
+  }
+
+  // ---------- Logo tap: reset everything ----------
+  function bindLogoReset() {
+    const logo = document.querySelector('.me-logo');
+    if (logo) {
+      logo.style.cursor = 'pointer';
+      logo.addEventListener('click', (e) => {
+        e.preventDefault();
+        resetAll();
+      });
+    }
+  }
+
+  // ---------- Reset all searches and filters ----------
+  function resetAll() {
+    // Clear search
+    searchQuery = '';
+    const mobileInput = document.getElementById('mobile-search-box');
+    const desktopInput = document.getElementById('search-box');
+    if (mobileInput) mobileInput.value = '';
+    if (desktopInput) desktopInput.value = '';
+
+    // Update search icon back to magnifying glass
+    const submitBtn = document.querySelector('.me-search-submit');
+    const submitIcon = submitBtn?.querySelector('i');
+    if (submitIcon) submitIcon.className = 'bi bi-search';
+    if (submitBtn) submitBtn.classList.remove('clear-mode');
+
+    // Reset filter to "All Movies"
+    activeFilter = 'all';
+    document.querySelectorAll('.filter-chip, .me-filter-chip').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[data-filter="all"]').forEach(b => b.classList.add('active'));
+    const labelEl = document.getElementById('activeFilterLabel');
+    if (labelEl) labelEl.textContent = 'All Movies';
+
+    // Reset sort to default
+    currentSort = 'date-desc';
+    document.querySelectorAll('.me-sort-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.me-sort-btn[data-sort="date-desc"]')?.classList.add('active');
+    const desktopBtns = document.getElementById('sort-buttons');
+    if (desktopBtns) {
+      desktopBtns.querySelectorAll('.btn').forEach(b => {
+        b.className = 'btn btn-sm ' + (b.dataset.sort === 'date-desc' ? 'btn-light' : 'btn-outline-light');
+      });
+    }
+
+    renderGrid();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // ---------- Poster URL helper ----------
@@ -579,18 +629,45 @@ const App = (() => {
       });
     }
 
-    // Focus search on click of submit button too
+    // Focus search / clear on click of submit button
     const searchSubmitBtn = document.querySelector('.me-search-submit');
+    const searchSubmitIcon = searchSubmitBtn?.querySelector('i');
+
+    function updateSearchIcon() {
+      if (!searchSubmitBtn || !searchSubmitIcon) return;
+      const hasText = mobileSearchBox && mobileSearchBox.value.trim().length > 0;
+      if (hasText) {
+        searchSubmitIcon.className = 'bi bi-x-lg';
+        searchSubmitBtn.classList.add('clear-mode');
+      } else {
+        searchSubmitIcon.className = 'bi bi-search';
+        searchSubmitBtn.classList.remove('clear-mode');
+      }
+    }
+
     if (searchSubmitBtn && mobileSearchBox) {
       searchSubmitBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        mobileSearchBox.focus();
+        if (mobileSearchBox.value.trim().length > 0) {
+          // Clear search
+          mobileSearchBox.value = '';
+          searchHasInput = false;
+          searchQuery = '';
+          const desktopInput = document.getElementById('search-box');
+          if (desktopInput) desktopInput.value = '';
+          updateSearchIcon();
+          renderGrid();
+          mobileSearchBox.focus();
+        } else {
+          mobileSearchBox.focus();
+        }
       });
     }
 
     if (mobileSearchBox) {
       mobileSearchBox.addEventListener('input', () => {
         searchHasInput = mobileSearchBox.value.trim().length > 0;
+        updateSearchIcon();
       });
       // When search loses focus and is empty, reset scroll state so UI normalises
       mobileSearchBox.addEventListener('blur', () => {
@@ -643,7 +720,7 @@ const App = (() => {
     }, { passive: true });
   }
 
-  return { init, closeFullScreen, FORMAT_META };
+  return { init, closeFullScreen, resetAll, FORMAT_META };
 })();
 
 document.addEventListener('DOMContentLoaded', App.init);
