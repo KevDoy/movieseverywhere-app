@@ -270,6 +270,10 @@ const App = (() => {
       chips.push({ key: `custom:${f}`, label: f });
     });
 
+    // "No Rating" chip — show movies without a user rating
+    const hasUnrated = movies.some(m => !m.rating || m.rating <= 0);
+    if (hasUnrated) chips.push({ key: 'no-rating', label: 'No Rating' });
+
     function syncActiveFilter(key, label) {
       activeFilter = key;
       if (container) container.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
@@ -282,6 +286,7 @@ const App = (() => {
     }
 
     const topLevelKeys = new Set(['featured', 'all', 'digital', 'physical']);
+    const trailingKeys = new Set(['no-rating']);
     let dividerInserted = false;
     let featuredDividerInserted = false;
 
@@ -301,8 +306,21 @@ const App = (() => {
         }
       }
       // Insert divider after the last top-level chip (before format chips)
-      if (!dividerInserted && !topLevelKeys.has(c.key)) {
+      if (!dividerInserted && !topLevelKeys.has(c.key) && !trailingKeys.has(c.key)) {
         dividerInserted = true;
+        if (container) {
+          const sep = document.createElement('span');
+          sep.className = 'filter-divider';
+          container.appendChild(sep);
+        }
+        if (mobileContainer) {
+          const sep = document.createElement('span');
+          sep.className = 'me-filter-divider';
+          mobileContainer.appendChild(sep);
+        }
+      }
+      // Insert divider before trailing chips (No Rating)
+      if (trailingKeys.has(c.key)) {
         if (container) {
           const sep = document.createElement('span');
           sep.className = 'filter-divider';
@@ -342,6 +360,7 @@ const App = (() => {
 
   function filterMovies(list) {
     if (activeFilter === 'all') return list;
+    if (activeFilter === 'no-rating') return list.filter(m => !m.rating || m.rating <= 0);
     if (activeFilter === 'physical') return list.filter(m => m.formats?.physical?.length > 0);
     if (activeFilter === 'digital') return list.filter(m => m.formats?.digital?.length > 0);
     if (activeFilter.startsWith('custom:')) {
