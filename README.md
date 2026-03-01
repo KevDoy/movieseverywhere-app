@@ -20,6 +20,7 @@ Fully static — no backend, no database. Everything lives in a single JSON file
 - **Tags & custom fields** — user-defined labels configured in `data/config.json`
 - **Import scripts** — bulk-import from Apple TV CSV, Fandango At Home HTML, Movies Anywhere / YouTube HTML, and Letterboxd ratings
 - **Poster download** — batch-download posters from TMDB for local hosting
+- **PWA support** — installable as a Progressive Web App with offline caching, full icon set, and Open Graph metadata
 - **Dark theme** — Bootstrap 5 dark mode with a glassmorphism-style header
 
 ## Getting Started
@@ -145,6 +146,9 @@ node scripts/import-letterboxd-ratings.mjs
 ```
 ├── index.html                  Main library view
 ├── manage.html                 Add / edit / delete movies
+├── manifest.json               PWA web app manifest
+├── sw.js                       Service worker for offline caching
+├── favicon.ico                 Multi-size favicon (16/32/48)
 ├── data/
 │   ├── config.json             App configuration & TMDB key
 │   └── movies.json             Movie collection data
@@ -152,6 +156,7 @@ node scripts/import-letterboxd-ratings.mjs
 │   ├── css/style.css           Custom styles
 │   ├── js/app.js               Library UI logic
 │   ├── js/manage.js            Manage page logic
+│   ├── icons/                  App icons (PWA, favicon, OG image)
 │   └── logos/                  Format & branding SVGs
 ├── posters/                    Locally cached poster images
 ├── scripts/
