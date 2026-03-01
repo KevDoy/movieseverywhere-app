@@ -101,17 +101,89 @@ a:hover { color: var(--accent-hover); }
   gap: .5rem;
   padding-bottom: 2rem;
 }
+
+/* When Featured is active, the grid becomes a simple vertical stack of sections */
+.poster-grid.featured-active {
+  display: block;
+}
+
 @media (min-width: 576px) {
-  .poster-grid { grid-template-columns: repeat(5, 1fr); }
+  .poster-grid:not(.featured-active) { grid-template-columns: repeat(5, 1fr); }
 }
 @media (min-width: 768px) {
-  .poster-grid { grid-template-columns: repeat(6, 1fr); }
+  .poster-grid:not(.featured-active) { grid-template-columns: repeat(6, 1fr); }
 }
 @media (min-width: 992px) {
-  .poster-grid { grid-template-columns: repeat(7, 1fr); }
+  .poster-grid:not(.featured-active) { grid-template-columns: repeat(7, 1fr); }
 }
 @media (min-width: 1200px) {
-  .poster-grid { grid-template-columns: repeat(8, 1fr); }
+  .poster-grid:not(.featured-active) { grid-template-columns: repeat(8, 1fr); }
+}
+
+/* ---- Featured Sections ---- */
+.featured-section {
+  margin-bottom: 2rem;
+}
+.featured-section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 .65rem 4px;
+  letter-spacing: -0.2px;
+}
+
+/* Desktop: horizontal scrolling row, 8 wide */
+.featured-row {
+  display: flex;
+  gap: .5rem;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.featured-row::-webkit-scrollbar { display: none; }
+
+.featured-row .poster-card {
+  flex: 0 0 calc((100% - 3.5rem) / 8);
+  min-width: 0;
+}
+
+@media (max-width: 1199.98px) {
+  .featured-row .poster-card {
+    flex: 0 0 calc((100% - 3rem) / 7);
+  }
+}
+@media (max-width: 991.98px) {
+  .featured-row .poster-card {
+    flex: 0 0 calc((100% - 2.5rem) / 6);
+  }
+}
+
+/* Mobile Featured: staggered two-column layout, no headlines */
+@media (max-width: 767.98px) {
+  .featured-section-title {
+    display: none;
+  }
+  /* Mobile: two explicit column wrappers for stagger */
+  .poster-grid.featured-mobile {
+    display: flex;
+    gap: 6px;
+    padding-bottom: 100px;
+  }
+  .featured-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  /* Offset right column down for stagger effect */
+  .featured-col-right {
+    margin-top: calc((50vw - 6px) * 0.75);
+  }
+  .featured-col .poster-card {
+    width: 100%;
+    flex-shrink: 0;
+  }
 }
 
 .poster-card {
@@ -193,9 +265,6 @@ a:hover { color: var(--accent-hover); }
 
 /* Format sections (Physical / Digital) */
 .format-section {
-  margin-top: .75rem;
-}
-.format-section:first-child {
   margin-top: 1rem;
 }
 .format-section-label {

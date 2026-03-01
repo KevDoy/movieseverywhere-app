@@ -31,7 +31,7 @@ const App = (() => {
   let movies = [];
   let config = {};
   let currentSort = 'date-desc';
-  let activeFilter = 'all';
+  let activeFilter = 'featured'; // default; overridden to 'all' if featured disabled
   let searchQuery = '';
   let detailOpen = false;   // tracks whether a detail view (modal or fullscreen) is open
   let closingViaBack = false; // prevents double history.back()
@@ -50,6 +50,9 @@ const App = (() => {
       config = { posterMode: 'remote', tmdbImageBase: 'https://image.tmdb.org/t/p/w500', customFields: [] };
     }
 
+    // If featured is disabled in config, default to 'all'
+    if (!config.featured) activeFilter = 'all';
+
     renderSortButtons();
     renderFilters();
     bindSearch();
@@ -57,6 +60,7 @@ const App = (() => {
     bindHistoryNav();
     bindPosterHero();
     bindLogoReset();
+    updateSortVisibility();
     renderGrid();
 
     if (config.posterMode === 'remote' && movies.length) {
@@ -109,12 +113,13 @@ const App = (() => {
     if (submitIcon) submitIcon.className = 'bi bi-search';
     if (submitBtn) submitBtn.classList.remove('clear-mode');
 
-    // Reset filter to "All Movies"
-    activeFilter = 'all';
+    // Reset filter to Featured (or All Movies if featured disabled)
+    activeFilter = config.featured ? 'featured' : 'all';
     document.querySelectorAll('.filter-chip, .me-filter-chip').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('[data-filter="all"]').forEach(b => b.classList.add('active'));
+    document.querySelectorAll(`[data-filter="${activeFilter}"]`).forEach(b => b.classList.add('active'));
     const labelEl = document.getElementById('activeFilterLabel');
-    if (labelEl) labelEl.textContent = 'All Movies';
+    if (labelEl) labelEl.textContent = activeFilter === 'featured' ? 'Featured' : 'All Movies';
+    updateSortVisibility();
 
     // Reset sort to default
     currentSort = 'date-desc';
@@ -146,6 +151,17 @@ const App = (() => {
     function handleSearch(value, syncTarget) {
       searchQuery = value.trim().toLowerCase();
       if (syncTarget) syncTarget.value = value;
+
+      // Auto-switch from Featured to All Movies when searching
+      if (searchQuery && activeFilter === 'featured') {
+        activeFilter = 'all';
+        document.querySelectorAll('.filter-chip, .me-filter-chip').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('[data-filter="all"]').forEach(b => b.classList.add('active'));
+        const labelEl = document.getElementById('activeFilterLabel');
+        if (labelEl) labelEl.textContent = 'All Movies';
+        updateSortVisibility();
+      }
+
       renderGrid();
     }
 
@@ -239,7 +255,9 @@ const App = (() => {
     const hasPhysical = movies.some(m => m.formats?.physical?.length > 0);
     const hasDigital = movies.some(m => m.formats?.digital?.length > 0);
 
-    const chips = [{ key: 'all', label: 'All Movies' }];
+    const chips = [];
+    if (config.featured) chips.push({ key: 'featured', label: 'Featured' });
+    chips.push({ key: 'all', label: 'All Movies' });
     if (hasDigital) chips.push({ key: 'digital', label: 'Digital' });
     if (hasPhysical) chips.push({ key: 'physical', label: 'Physical' });
 
@@ -259,14 +277,30 @@ const App = (() => {
       document.querySelectorAll(`[data-filter="${key}"]`).forEach(b => b.classList.add('active'));
       const labelEl = document.getElementById('activeFilterLabel');
       if (labelEl) labelEl.textContent = label;
+      updateSortVisibility();
       renderGrid();
     }
 
-    const topLevelKeys = new Set(['all', 'digital', 'physical']);
+    const topLevelKeys = new Set(['featured', 'all', 'digital', 'physical']);
     let dividerInserted = false;
+    let featuredDividerInserted = false;
 
     chips.forEach((c, i) => {
-      // Insert divider after the last top-level chip
+      // Insert divider after Featured chip (before All Movies)
+      if (config.featured && !featuredDividerInserted && c.key !== 'featured') {
+        featuredDividerInserted = true;
+        if (container) {
+          const sep = document.createElement('span');
+          sep.className = 'filter-divider';
+          container.appendChild(sep);
+        }
+        if (mobileContainer) {
+          const sep = document.createElement('span');
+          sep.className = 'me-filter-divider';
+          mobileContainer.appendChild(sep);
+        }
+      }
+      // Insert divider after the last top-level chip (before format chips)
       if (!dividerInserted && !topLevelKeys.has(c.key)) {
         dividerInserted = true;
         if (container) {
@@ -319,12 +353,32 @@ const App = (() => {
     return list.filter(m => m.formats && m.formats[meta.category]?.includes(activeFilter));
   }
 
+  // ---------- Sort visibility (hide on Featured) ----------
+  function updateSortVisibility() {
+    const sortBubble = document.getElementById('sortBubble');
+    if (!sortBubble) return;
+    if (activeFilter === 'featured') {
+      sortBubble.style.display = 'none';
+    } else {
+      sortBubble.style.display = '';
+    }
+  }
+
   // ---------- Grid rendering ----------
   function renderGrid() {
     const grid = document.getElementById('poster-grid');
     if (!grid) return;
     grid.innerHTML = '';
 
+    // Featured view
+    if (activeFilter === 'featured') {
+      grid.classList.add('featured-active');
+      renderFeatured(grid);
+      return;
+    }
+
+    grid.classList.remove('featured-active');
+    grid.classList.remove('featured-mobile');
     const visible = sortMovies(filterMovies(searchMovies(movies)));
 
     if (visible.length === 0) {
@@ -333,37 +387,142 @@ const App = (() => {
     }
 
     visible.forEach(movie => {
-      const card = document.createElement('div');
-      card.className = 'poster-card';
-      card.setAttribute('role', 'button');
-      card.setAttribute('tabindex', '0');
-      card.setAttribute('aria-label', movie.title);
+      grid.appendChild(buildPosterCard(movie));
+    });
+  }
 
-      const src = posterUrl(movie);
-      if (src) {
-        const img = document.createElement('img');
-        img.src = src;
-        img.alt = movie.title;
-        img.loading = 'lazy';
-        img.onerror = function () {
-          this.style.display = 'none';
-          const ph = document.createElement('div');
-          ph.className = 'poster-placeholder';
-          ph.textContent = movie.title;
-          card.appendChild(ph);
-        };
-        card.appendChild(img);
-      } else {
+  function buildPosterCard(movie) {
+    const card = document.createElement('div');
+    card.className = 'poster-card';
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('aria-label', movie.title);
+
+    const src = posterUrl(movie);
+    if (src) {
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = movie.title;
+      img.loading = 'lazy';
+      img.onerror = function () {
+        this.style.display = 'none';
         const ph = document.createElement('div');
         ph.className = 'poster-placeholder';
         ph.textContent = movie.title;
         card.appendChild(ph);
-      }
+      };
+      card.appendChild(img);
+    } else {
+      const ph = document.createElement('div');
+      ph.className = 'poster-placeholder';
+      ph.textContent = movie.title;
+      card.appendChild(ph);
+    }
 
-      card.addEventListener('click', () => openDetail(movie));
-      card.addEventListener('keydown', (e) => { if (e.key === 'Enter') openDetail(movie); });
-      grid.appendChild(card);
+    card.addEventListener('click', () => openDetail(movie));
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter') openDetail(movie); });
+    return card;
+  }
+
+  // ---------- Featured rendering ----------
+  function renderFeatured(grid) {
+    const SECTION_SIZE = 8;
+    const MIN_GENRE_COUNT = 4;
+    const sections = [];
+    const usedIds = new Set();
+
+    // 1. Newest Movies
+    const newest = [...movies].sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || '')).slice(0, SECTION_SIZE);
+    if (newest.length) {
+      sections.push({ title: 'Newest Movies', items: newest });
+      newest.forEach(m => usedIds.add(m.tmdbId));
+    }
+
+    // 2. Highest Rated (only if user has rated at least one movie)
+    const hasRatings = movies.some(m => m.rating && m.rating > 0);
+    if (hasRatings) {
+      const topRated = [...movies].filter(m => m.rating && m.rating > 0)
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.releaseDate || '').localeCompare(a.releaseDate || ''))
+        .filter(m => !usedIds.has(m.tmdbId))
+        .slice(0, SECTION_SIZE);
+      if (topRated.length) {
+        sections.push({ title: 'Highest Rated', items: topRated });
+        topRated.forEach(m => usedIds.add(m.tmdbId));
+      }
+    }
+
+    // 3. Genre sections
+    const genreCounts = {};
+    movies.forEach(m => {
+      (m.genres || []).forEach(g => {
+        if (!genreCounts[g]) genreCounts[g] = [];
+        genreCounts[g].push(m);
+      });
     });
+    // Sort genres by count descending so the biggest categories come first
+    const sortedGenres = Object.entries(genreCounts)
+      .filter(([, arr]) => arr.length >= MIN_GENRE_COUNT)
+      .sort((a, b) => b[1].length - a[1].length);
+
+    sortedGenres.forEach(([genre, genreMovies]) => {
+      const picks = genreMovies
+        .filter(m => !usedIds.has(m.tmdbId))
+        .sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || ''))
+        .slice(0, SECTION_SIZE);
+      if (picks.length >= MIN_GENRE_COUNT) {
+        sections.push({ title: genre, items: picks });
+        picks.forEach(m => usedIds.add(m.tmdbId));
+      }
+    });
+
+    if (sections.length === 0) {
+      grid.innerHTML = '<div class="text-center text-secondary py-5 w-100" style="grid-column:1/-1;">No movies to feature.</div>';
+      return;
+    }
+
+    const isMobile = window.innerWidth < 768;
+
+    // Collect all featured movies in order
+    const allFeatured = [];
+    sections.forEach(s => allFeatured.push(...s.items));
+
+    if (isMobile) {
+      // Mobile: staggered two-column layout — split into left/right columns
+      grid.classList.add('featured-mobile');
+      const leftCol = document.createElement('div');
+      leftCol.className = 'featured-col featured-col-left';
+      const rightCol = document.createElement('div');
+      rightCol.className = 'featured-col featured-col-right';
+
+      allFeatured.forEach((movie, i) => {
+        const card = buildPosterCard(movie);
+        if (i % 2 === 0) leftCol.appendChild(card);
+        else rightCol.appendChild(card);
+      });
+
+      grid.appendChild(leftCol);
+      grid.appendChild(rightCol);
+    } else {
+      // Desktop: sectioned rows with headings
+      grid.classList.remove('featured-mobile');
+      sections.forEach(section => {
+        const sectionEl = document.createElement('div');
+        sectionEl.className = 'featured-section';
+
+        const heading = document.createElement('h3');
+        heading.className = 'featured-section-title';
+        heading.textContent = section.title;
+        sectionEl.appendChild(heading);
+
+        const row = document.createElement('div');
+        row.className = 'featured-row';
+        section.items.forEach(movie => {
+          row.appendChild(buildPosterCard(movie));
+        });
+        sectionEl.appendChild(row);
+        grid.appendChild(sectionEl);
+      });
+    }
   }
 
   // ---------- Detail view ----------
