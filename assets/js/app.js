@@ -29,24 +29,37 @@ const App = (() => {
   };
 
   let movies = [];
+  let tvShows = [];
   let config = {};
+  let currentMode = 'movies'; // 'movies' | 'tv'
   let currentSort = 'date-desc';
   let activeFilter = 'featured'; // default; overridden to 'all' if featured disabled
   let searchQuery = '';
   let detailOpen = false;   // tracks whether a detail view (modal or fullscreen) is open
   let closingViaBack = false; // prevents double history.back()
 
+  /** Return the active dataset based on current mode */
+  function activeData() {
+    return currentMode === 'tv' ? tvShows : movies;
+  }
+
   // ---------- Bootstrap ----------
   async function init() {
     showLoading(true);
     try {
-      [config, movies] = await Promise.all([
+      const fetches = [
         fetch('data/config.json').then(r => r.json()),
         fetch('data/movies.json').then(r => r.json()),
-      ]);
+      ];
+      // Speculatively load TV shows JSON (may not exist)
+      fetches.push(
+        fetch('data/tvshows.json').then(r => { if (!r.ok) throw new Error('no tv'); return r.json(); }).catch(() => [])
+      );
+      [config, movies, tvShows] = await Promise.all(fetches);
     } catch (e) {
       console.error('Failed to load data:', e);
       movies = [];
+      tvShows = [];
       config = { posterMode: 'remote', tmdbImageBase: 'https://image.tmdb.org/t/p/w500', customFields: [] };
     }
 
@@ -60,6 +73,7 @@ const App = (() => {
     bindHistoryNav();
     bindPosterHero();
     bindLogoReset();
+    bindModeToggle();
     updateSortVisibility();
     renderGrid();
 
@@ -93,9 +107,94 @@ const App = (() => {
       logo.style.cursor = 'pointer';
       logo.addEventListener('click', (e) => {
         e.preventDefault();
+        // Reset to movies mode if in TV mode
+        if (currentMode !== 'movies') {
+          switchMode('movies');
+        }
         resetAll();
       });
     }
+  }
+
+  // ---------- Mode Toggle (Movies / TV) ----------
+  function bindModeToggle() {
+    const toggle = document.getElementById('modeToggle');
+    if (!toggle) return;
+
+    // Show toggle only if tvShows enabled in config
+    if (config.tvShows && tvShows.length >= 0) {
+      toggle.style.display = '';
+    } else {
+      toggle.style.display = 'none';
+      return;
+    }
+
+    toggle.querySelectorAll('.me-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+        if (mode === currentMode) return;
+        switchMode(mode);
+      });
+    });
+  }
+
+  function switchMode(mode) {
+    currentMode = mode;
+
+    // Update toggle buttons
+    document.querySelectorAll('.me-mode-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.me-mode-btn[data-mode="${mode}"]`)?.classList.add('active');
+
+    // Reset search
+    searchQuery = '';
+    const mobileInput = document.getElementById('mobile-search-box');
+    const desktopInput = document.getElementById('search-box');
+    if (mobileInput) mobileInput.value = '';
+    if (desktopInput) desktopInput.value = '';
+    const submitBtn = document.querySelector('.me-search-submit');
+    const submitIcon = submitBtn?.querySelector('i');
+    if (submitIcon) submitIcon.className = 'bi bi-search';
+    if (submitBtn) submitBtn.classList.remove('clear-mode');
+
+    // Reset filter and sort
+    activeFilter = config.featured ? 'featured' : 'all';
+    currentSort = 'date-desc';
+    document.querySelectorAll('.me-sort-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.me-sort-btn[data-sort="date-desc"]')?.classList.add('active');
+
+    // Rebuild filters for the new dataset
+    renderFilters();
+    updateSortVisibility();
+    renderGrid();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /** Returns true when every season of a TV show is owned (physical or digital), or has a box set */
+  function isCompleteSet(show) {
+    if (!show.totalSeasons || show.totalSeasons < 1) return false;
+    // A box set counts as owning the complete show
+    const hasBoxSet = show.boxSet && (show.boxSet.physical || (show.boxSet.digital && show.boxSet.digital.length > 0));
+    if (hasBoxSet) return true;
+    const seasonMap = {};
+    (show.seasons || []).forEach(s => { seasonMap[s.seasonNumber] = s; });
+    for (let i = 1; i <= show.totalSeasons; i++) {
+      const s = seasonMap[i];
+      const hasPhysical = s && s.physical;
+      const hasDigital = s && s.digital && s.digital.length > 0;
+      if (!hasPhysical && !hasDigital) return false;
+    }
+    return true;
+  }
+
+  /** Label helpers that adapt to current mode */
+  function allLabel() {
+    return currentMode === 'tv' ? 'All Shows' : 'All Movies';
+  }
+  function noItemsLabel() {
+    return currentMode === 'tv' ? 'No shows found.' : 'No movies found.';
+  }
+  function noFeaturedLabel() {
+    return currentMode === 'tv' ? 'No shows to feature.' : 'No movies to feature.';
   }
 
   // ---------- Reset all searches and filters ----------
@@ -113,12 +212,12 @@ const App = (() => {
     if (submitIcon) submitIcon.className = 'bi bi-search';
     if (submitBtn) submitBtn.classList.remove('clear-mode');
 
-    // Reset filter to Featured (or All Movies if featured disabled)
+    // Reset filter to Featured (or All if featured disabled)
     activeFilter = config.featured ? 'featured' : 'all';
     document.querySelectorAll('.filter-chip, .me-filter-chip').forEach(b => b.classList.remove('active'));
     document.querySelectorAll(`[data-filter="${activeFilter}"]`).forEach(b => b.classList.add('active'));
     const labelEl = document.getElementById('activeFilterLabel');
-    if (labelEl) labelEl.textContent = activeFilter === 'featured' ? 'Featured' : 'All Movies';
+    if (labelEl) labelEl.textContent = activeFilter === 'featured' ? 'Featured' : allLabel();
     updateSortVisibility();
 
     // Reset sort to default
@@ -152,13 +251,13 @@ const App = (() => {
       searchQuery = value.trim().toLowerCase();
       if (syncTarget) syncTarget.value = value;
 
-      // Auto-switch from Featured to All Movies when searching
+      // Auto-switch from Featured to All when searching
       if (searchQuery && activeFilter === 'featured') {
         activeFilter = 'all';
         document.querySelectorAll('.filter-chip, .me-filter-chip').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('[data-filter="all"]').forEach(b => b.classList.add('active'));
         const labelEl = document.getElementById('activeFilterLabel');
-        if (labelEl) labelEl.textContent = 'All Movies';
+        if (labelEl) labelEl.textContent = allLabel();
         updateSortVisibility();
       }
 
@@ -177,7 +276,7 @@ const App = (() => {
     if (!searchQuery) return list;
     return list.filter(m => {
       const haystack = [
-        m.title, m.director,
+        m.title, m.director, m.creator,
         ...(m.cast || []), ...(m.genres || []), ...(m.tags || []),
       ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(searchQuery);
@@ -187,8 +286,9 @@ const App = (() => {
   // ---------- Sorting ----------
   function sortMovies(list) {
     const sorted = [...list];
+    const dateKey = currentMode === 'tv' ? 'firstAirDate' : 'releaseDate';
     if (currentSort === 'date-desc') {
-      sorted.sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || ''));
+      sorted.sort((a, b) => (b[dateKey] || '').localeCompare(a[dateKey] || ''));
     } else if (currentSort === 'alpha-asc') {
       sorted.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
     } else if (currentSort === 'rating-desc') {
@@ -225,19 +325,34 @@ const App = (() => {
 
   // ---------- Filtering ----------
   function getUsedFormats() {
+    const data = activeData();
     const used = new Set();
-    movies.forEach(m => {
-      if (!m.formats) return;
-      (m.formats.physical || []).forEach(f => used.add(f));
-      (m.formats.digital || []).forEach(f => used.add(f));
-    });
+    if (currentMode === 'tv') {
+      // For TV shows, gather formats from seasons + boxSet
+      data.forEach(show => {
+        (show.seasons || []).forEach(s => {
+          if (s.physical) used.add(s.physical);
+          (s.digital || []).forEach(f => used.add(f));
+        });
+        if (show.boxSet) {
+          if (show.boxSet.physical) used.add(show.boxSet.physical);
+          (show.boxSet.digital || []).forEach(f => used.add(f));
+        }
+      });
+    } else {
+      data.forEach(m => {
+        if (!m.formats) return;
+        (m.formats.physical || []).forEach(f => used.add(f));
+        (m.formats.digital || []).forEach(f => used.add(f));
+      });
+    }
     return used;
   }
 
   function getUsedCustomFields() {
     const fields = config.customFields || [];
     const used = new Set();
-    movies.forEach(m => {
+    activeData().forEach(m => {
       if (!m.customTags) return;
       fields.forEach(f => { if (m.customTags[f]) used.add(f); });
     });
@@ -252,14 +367,22 @@ const App = (() => {
     if (mobileContainer) mobileContainer.innerHTML = '';
 
     const usedFormats = getUsedFormats();
-    const hasPhysical = movies.some(m => m.formats?.physical?.length > 0);
-    const hasDigital = movies.some(m => m.formats?.digital?.length > 0);
+    const data = activeData();
+    let hasPhysical, hasDigital;
+    if (currentMode === 'tv') {
+      hasPhysical = data.some(s => (s.seasons || []).some(sn => sn.physical) || s.boxSet?.physical);
+      hasDigital = data.some(s => (s.seasons || []).some(sn => (sn.digital || []).length > 0) || (s.boxSet?.digital || []).length > 0);
+    } else {
+      hasPhysical = data.some(m => m.formats?.physical?.length > 0);
+      hasDigital = data.some(m => m.formats?.digital?.length > 0);
+    }
 
     const chips = [];
     if (config.featured) chips.push({ key: 'featured', label: 'Featured' });
-    chips.push({ key: 'all', label: 'All Movies' });
+    chips.push({ key: 'all', label: allLabel() });
     if (hasDigital) chips.push({ key: 'digital', label: 'Digital' });
     if (hasPhysical) chips.push({ key: 'physical', label: 'Physical' });
+    if (currentMode === 'tv' && data.some(isCompleteSet)) chips.push({ key: 'complete-set', label: 'Complete Set' });
 
     Object.keys(FORMAT_META).forEach(key => {
       if (usedFormats.has(key)) chips.push({ key, label: FORMAT_META[key].label });
@@ -270,8 +393,12 @@ const App = (() => {
       chips.push({ key: `custom:${f}`, label: f });
     });
 
-    // "No Rating" chip — show movies without a user rating
-    const hasUnrated = movies.some(m => !m.rating || m.rating <= 0);
+    // "Not Watched" chip
+    const hasUnwatched = data.some(m => !m.watched);
+    if (hasUnwatched) chips.push({ key: 'not-watched', label: 'Not Watched' });
+
+    // "No Rating" chip
+    const hasUnrated = data.some(m => !m.rating || m.rating <= 0);
     if (hasUnrated) chips.push({ key: 'no-rating', label: 'No Rating' });
 
     function syncActiveFilter(key, label) {
@@ -285,8 +412,8 @@ const App = (() => {
       renderGrid();
     }
 
-    const topLevelKeys = new Set(['featured', 'all', 'digital', 'physical']);
-    const trailingKeys = new Set(['no-rating']);
+    const topLevelKeys = new Set(['featured', 'all', 'digital', 'physical', 'complete-set']);
+    const trailingKeys = new Set(['not-watched', 'no-rating']);
     let dividerInserted = false;
     let featuredDividerInserted = false;
 
@@ -319,8 +446,8 @@ const App = (() => {
           mobileContainer.appendChild(sep);
         }
       }
-      // Insert divider before trailing chips (No Rating)
-      if (trailingKeys.has(c.key)) {
+      // Insert divider before trailing group (once, before Not Watched)
+      if (c.key === 'not-watched') {
         if (container) {
           const sep = document.createElement('span');
           sep.className = 'filter-divider';
@@ -360,13 +487,35 @@ const App = (() => {
 
   function filterMovies(list) {
     if (activeFilter === 'all') return list;
+    if (activeFilter === 'complete-set') return list.filter(isCompleteSet);
+    if (activeFilter === 'not-watched') return list.filter(m => !m.watched);
     if (activeFilter === 'no-rating') return list.filter(m => !m.rating || m.rating <= 0);
-    if (activeFilter === 'physical') return list.filter(m => m.formats?.physical?.length > 0);
-    if (activeFilter === 'digital') return list.filter(m => m.formats?.digital?.length > 0);
     if (activeFilter.startsWith('custom:')) {
       const field = activeFilter.slice(7);
       return list.filter(m => m.customTags && m.customTags[field]);
     }
+
+    if (currentMode === 'tv') {
+      // TV filtering on seasons + boxSet
+      if (activeFilter === 'physical') {
+        return list.filter(s => (s.seasons || []).some(sn => sn.physical) || s.boxSet?.physical);
+      }
+      if (activeFilter === 'digital') {
+        return list.filter(s => (s.seasons || []).some(sn => (sn.digital || []).length > 0) || (s.boxSet?.digital || []).length > 0);
+      }
+      const meta = FORMAT_META[activeFilter];
+      if (!meta) return list;
+      return list.filter(s => {
+        if (meta.category === 'physical') {
+          return (s.seasons || []).some(sn => sn.physical === activeFilter) || s.boxSet?.physical === activeFilter;
+        }
+        return (s.seasons || []).some(sn => (sn.digital || []).includes(activeFilter)) || (s.boxSet?.digital || []).includes(activeFilter);
+      });
+    }
+
+    // Movie filtering
+    if (activeFilter === 'physical') return list.filter(m => m.formats?.physical?.length > 0);
+    if (activeFilter === 'digital') return list.filter(m => m.formats?.digital?.length > 0);
     const meta = FORMAT_META[activeFilter];
     if (!meta) return list;
     return list.filter(m => m.formats && m.formats[meta.category]?.includes(activeFilter));
@@ -398,10 +547,10 @@ const App = (() => {
 
     grid.classList.remove('featured-active');
     grid.classList.remove('featured-mobile');
-    const visible = sortMovies(filterMovies(searchMovies(movies)));
+    const visible = sortMovies(filterMovies(searchMovies(activeData())));
 
     if (visible.length === 0) {
-      grid.innerHTML = '<div class="text-center text-secondary py-5 w-100" style="grid-column:1/-1;">No movies found.</div>';
+      grid.innerHTML = `<div class="text-center text-secondary py-5 w-100" style="grid-column:1/-1;">${noItemsLabel()}</div>`;
       return;
     }
 
@@ -449,19 +598,33 @@ const App = (() => {
     const MIN_GENRE_COUNT = 4;
     const sections = [];
     const usedIds = new Set();
+    const data = activeData();
+    const dateKey = currentMode === 'tv' ? 'firstAirDate' : 'releaseDate';
+    const newestLabel = currentMode === 'tv' ? 'Newest Shows' : 'Newest Movies';
 
-    // 1. Newest Movies
-    const newest = [...movies].sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || '')).slice(0, SECTION_SIZE);
+    // 1. Newest
+    const newest = [...data].sort((a, b) => (b[dateKey] || '').localeCompare(a[dateKey] || '')).slice(0, SECTION_SIZE);
     if (newest.length) {
-      sections.push({ title: 'Newest Movies', items: newest });
+      sections.push({ title: newestLabel, items: newest });
       newest.forEach(m => usedIds.add(m.tmdbId));
     }
 
-    // 2. Highest Rated (only if user has rated at least one movie)
-    const hasRatings = movies.some(m => m.rating && m.rating > 0);
+    // 2. Complete Sets (TV mode only)
+    if (currentMode === 'tv') {
+      const completeShows = data.filter(s => isCompleteSet(s) && !usedIds.has(s.tmdbId))
+        .sort((a, b) => (b[dateKey] || '').localeCompare(a[dateKey] || ''))
+        .slice(0, SECTION_SIZE);
+      if (completeShows.length) {
+        sections.push({ title: 'Complete Sets', items: completeShows });
+        completeShows.forEach(m => usedIds.add(m.tmdbId));
+      }
+    }
+
+    // 3. Highest Rated (only if user has rated at least one)
+    const hasRatings = data.some(m => m.rating && m.rating > 0);
     if (hasRatings) {
-      const topRated = [...movies].filter(m => m.rating && m.rating > 0)
-        .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.releaseDate || '').localeCompare(a.releaseDate || ''))
+      const topRated = [...data].filter(m => m.rating && m.rating > 0)
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b[dateKey] || '').localeCompare(a[dateKey] || ''))
         .filter(m => !usedIds.has(m.tmdbId))
         .slice(0, SECTION_SIZE);
       if (topRated.length) {
@@ -470,9 +633,9 @@ const App = (() => {
       }
     }
 
-    // 3. Genre sections
+    // 4. Genre sections
     const genreCounts = {};
-    movies.forEach(m => {
+    data.forEach(m => {
       (m.genres || []).forEach(g => {
         if (!genreCounts[g]) genreCounts[g] = [];
         genreCounts[g].push(m);
@@ -483,10 +646,10 @@ const App = (() => {
       .filter(([, arr]) => arr.length >= MIN_GENRE_COUNT)
       .sort((a, b) => b[1].length - a[1].length);
 
-    sortedGenres.forEach(([genre, genreMovies]) => {
-      const picks = genreMovies
+    sortedGenres.forEach(([genre, genreItems]) => {
+      const picks = genreItems
         .filter(m => !usedIds.has(m.tmdbId))
-        .sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || ''))
+        .sort((a, b) => (b[dateKey] || '').localeCompare(a[dateKey] || ''))
         .slice(0, SECTION_SIZE);
       if (picks.length >= MIN_GENRE_COUNT) {
         sections.push({ title: genre, items: picks });
@@ -495,7 +658,7 @@ const App = (() => {
     });
 
     if (sections.length === 0) {
-      grid.innerHTML = '<div class="text-center text-secondary py-5 w-100" style="grid-column:1/-1;">No movies to feature.</div>';
+      grid.innerHTML = `<div class="text-center text-secondary py-5 w-100" style="grid-column:1/-1;">${noFeaturedLabel()}</div>`;
       return;
     }
 
@@ -569,7 +732,9 @@ const App = (() => {
   function buildCredits(movie) {
     let html = '';
     if (movie.director) html += `<p class="detail-credits-line"><span class="credits-label">Director</span> ${movie.director}</p>`;
+    if (movie.creator) html += `<p class="detail-credits-line"><span class="credits-label">Creator</span> ${movie.creator}</p>`;
     if (movie.cast?.length > 0) html += `<p class="detail-credits-line"><span class="credits-label">Cast</span> ${movie.cast.join(', ')}</p>`;
+    if (movie.totalSeasons) html += `<p class="detail-credits-line"><span class="credits-label">Seasons</span> ${movie.totalSeasons}</p>`;
     return html;
   }
 
@@ -619,15 +784,112 @@ const App = (() => {
     return '<div class="movie-tags">' + items.map(t => `<span class="movie-tag">${t}</span>`).join('') + '</div>';
   }
 
+  // ---------- TV Show Seasons / Box Set rendering ----------
+  function formatBadgeHtml(key, title) {
+    const meta = FORMAT_META[key];
+    if (!meta) return `<span class="format-badge">${key}</span>`;
+    const encodedTitle = encodeURIComponent(title || '');
+    const slug = (title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (meta.url) {
+      const href = meta.url.replace('{q}', encodedTitle).replace('{slug}', slug);
+      return `<a class="format-badge format-badge-link" href="${href}" target="_blank" rel="noopener" data-bs-toggle="tooltip" data-bs-title="${meta.label}"><img src="${meta.logo}" alt="${meta.label}"></a>`;
+    }
+    return `<span class="format-badge" data-bs-toggle="tooltip" data-bs-title="${meta.label}"><img src="${meta.logo}" alt="${meta.label}"></span>`;
+  }
+
+  function buildSeasons(show) {
+    if (currentMode !== 'tv') return '';
+
+    const hasBoxSet = show.boxSet && (show.boxSet.physical || (show.boxSet.digital && show.boxSet.digital.length > 0));
+
+    let html = '<div class="seasons-section">';
+    html += '<div class="seasons-section-title">Availability</div>';
+
+    if (hasBoxSet) {
+      // Box Set display
+      html += '<div class="box-set-badge">';
+      html += '<span>Box Set</span>';
+      if (show.boxSet.physical) {
+        html += `<span class="season-divider"></span>`;
+        html += formatBadgeHtml(show.boxSet.physical, show.title);
+      }
+      if (show.boxSet.digital && show.boxSet.digital.length > 0) {
+        html += `<span class="season-divider"></span>`;
+        show.boxSet.digital.forEach(f => {
+          html += formatBadgeHtml(f, show.title);
+        });
+      }
+      html += '</div>';
+    }
+
+    // Per-season breakdown (show alongside or instead of box set)
+    const seasons = show.seasons || [];
+    if (seasons.length > 0) {
+      html += '<div class="seasons-list">';
+      // Build lookup of defined seasons
+      const seasonMap = {};
+      seasons.forEach(s => { seasonMap[s.seasonNumber] = s; });
+
+      for (let i = 1; i <= (show.totalSeasons || seasons.length); i++) {
+        const s = seasonMap[i];
+
+        const hasPhysical = s && s.physical;
+        const hasDigital = s && s.digital && s.digital.length > 0;
+
+        // Hide seasons that are not owned
+        if (!hasPhysical && !hasDigital) continue;
+
+        html += '<div class="season-row">';
+        html += `<span class="season-label">S${i}</span>`;
+        html += '<span class="season-formats">';
+
+        {
+          if (hasPhysical) {
+            html += '<span class="season-format-group">';
+            html += formatBadgeHtml(s.physical, show.title);
+            html += '</span>';
+          }
+          if (hasPhysical && hasDigital) {
+            html += '<span class="season-divider"></span>';
+          }
+          if (hasDigital) {
+            html += '<span class="season-format-group">';
+            s.digital.forEach(f => {
+              html += formatBadgeHtml(f, show.title);
+            });
+            html += '</span>';
+          }
+        }
+
+        html += '</span></div>';
+      }
+      html += '</div>';
+    } else if (!hasBoxSet) {
+      html += '<div class="season-not-owned-msg">No seasons owned</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
   function populateDetail(prefix, movie) {
     document.getElementById(`${prefix}-title`).textContent = movie.title || '';
-    document.getElementById(`${prefix}-date`).textContent = movie.releaseDate ? `Release: ${movie.releaseDate}` : '';
+    // Date: use firstAirDate for TV, releaseDate for movies
+    const dateVal = movie.firstAirDate || movie.releaseDate;
+    const dateLabel = currentMode === 'tv' ? 'First Aired' : 'Release';
+    document.getElementById(`${prefix}-date`).textContent = dateVal ? `${dateLabel}: ${dateVal}` : '';
     document.getElementById(`${prefix}-rating`).innerHTML = buildStars(movie.rating);
     document.getElementById(`${prefix}-genres`).innerHTML = buildGenreTags(movie);
     document.getElementById(`${prefix}-credits`).innerHTML = buildCredits(movie);
     document.getElementById(`${prefix}-overview`).textContent = movie.overview || '';
     document.getElementById(`${prefix}-formats`).innerHTML = buildFormatBadges(movie);
     document.getElementById(`${prefix}-formats`).querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+    // Seasons (TV only)
+    const seasonsEl = document.getElementById(`${prefix}-seasons`);
+    if (seasonsEl) {
+      seasonsEl.innerHTML = buildSeasons(movie);
+      seasonsEl.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+    }
     document.getElementById(`${prefix}-tags`).innerHTML = buildTags(movie);
     const posterImg = document.getElementById(`${prefix}-poster`);
     const src = posterUrl(movie);
@@ -883,6 +1145,9 @@ const App = (() => {
           if (!searchFocused) collapseSearch();
           // Close sort bubble on scroll
           if (sortBubble) sortBubble.classList.remove('expanded');
+          // Hide mode toggle on mobile
+          const modeToggle = document.querySelector('.me-mode-toggle');
+          if (modeToggle) modeToggle.classList.add('scroll-hidden');
         } else if (scrollY <= 10 && isScrolled) {
           // Returned to top — but not while user is actively searching
           if (searchFocused || searchHasInput) return;
@@ -890,6 +1155,9 @@ const App = (() => {
           if (filterBar) filterBar.classList.remove('hidden');
           if (activeFilterPill) activeFilterPill.classList.remove('visible');
           expandSearch();
+          // Show mode toggle again
+          const modeToggle = document.querySelector('.me-mode-toggle');
+          if (modeToggle) modeToggle.classList.remove('scroll-hidden');
         } else if (isScrolled && !searchHasInput && !searchFocused) {
           // Re-collapse search if user scrolls without typing
           collapseSearch();

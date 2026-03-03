@@ -1320,6 +1320,200 @@ a.format-badge-link:hover {
   pointer-events: auto;
 }
 
+/* ---- Mode Toggle (Movies / TV) ---- */
+.me-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-radius: 50px;
+  padding: 3px;
+  margin-left: 12px;
+  flex-shrink: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  /* Liquid glass */
+  background: linear-gradient(
+    135deg,
+    rgba(180, 180, 180, 0.22) 0%,
+    rgba(120, 120, 120, 0.15) 40%,
+    rgba(80, 80, 80, 0.20) 60%,
+    rgba(150, 150, 150, 0.18) 100%
+  );
+  -webkit-backdrop-filter: blur(40px) saturate(1.6) brightness(0.95);
+  backdrop-filter: blur(40px) saturate(1.6) brightness(0.95);
+  box-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.20),
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.20),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.15);
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+}
+
+.me-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 50px;
+  background: transparent;
+  color: rgba(220, 220, 220, 0.55);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.me-mode-btn i {
+  font-size: 0.9rem;
+}
+
+.me-mode-btn.active {
+  background: rgba(200, 200, 200, 0.22);
+  color: #fff;
+}
+
+.me-mode-btn:not(.active):hover {
+  color: rgba(220, 220, 220, 0.85);
+}
+
+@media (max-width: 767.98px) {
+  .me-mode-toggle.scroll-hidden {
+    opacity: 0;
+    transform: scale(0.85);
+    pointer-events: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .me-mode-toggle {
+    margin-left: 16px;
+  }
+  .me-mode-btn {
+    padding: 7px 18px;
+    font-size: 0.82rem;
+  }
+}
+
+/* ---- Seasons Breakdown (TV Detail) ---- */
+.seasons-section {
+  margin-top: 1rem;
+}
+
+.seasons-section-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.seasons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.season-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 0.5px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.82rem;
+}
+
+.season-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 28px;
+  flex-shrink: 0;
+}
+
+.season-formats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.season-format-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.season-format-group .format-section-label {
+  font-size: 0.72rem;
+}
+
+.season-format-group .format-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  overflow: hidden;
+  padding: 3px;
+}
+
+.season-format-group .format-badge img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.season-not-owned {
+  color: rgba(180, 180, 180, 0.35);
+  font-style: italic;
+  font-size: 0.78rem;
+}
+
+.season-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.box-set-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 0.5px solid rgba(255, 255, 255, 0.10);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.box-set-badge .format-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  overflow: hidden;
+  padding: 3px;
+}
+
+.box-set-badge .format-badge img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.season-not-owned-msg {
+  color: rgba(180, 180, 180, 0.35);
+  font-style: italic;
+  font-size: 0.78rem;
+  padding: 6px 0;
+}
+
 /* ---- Footer — glass ---- */
 footer {
   text-align: center;

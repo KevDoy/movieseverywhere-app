@@ -51,6 +51,10 @@
   <!-- ===== GLASS HEADER (all sizes) ===== -->
   <header class="me-header" id="meHeader">
     <img class="me-logo" src="assets/logos/movieseverywhere-color.png" alt="Movies Everywhere">
+    <div class="me-mode-toggle" id="modeToggle" style="display:none">
+      <button class="me-mode-btn active" data-mode="movies" aria-label="Movies"><i class="bi bi-film"></i> Movies</button>
+      <button class="me-mode-btn" data-mode="tv" aria-label="TV Shows"><i class="bi bi-tv"></i> TV</button>
+    </div>
     <div class="me-active-filter" id="activeFilterPill">
       <span id="activeFilterLabel">All Movies</span>
     </div>
@@ -114,6 +118,7 @@
               <div id="detail-credits"></div>
               <p class="detail-overview" id="detail-overview"></p>
               <div class="format-badges" id="detail-formats"></div>
+              <div id="detail-seasons"></div>
               <div id="detail-tags"></div>
             </div>
           </div>
@@ -156,6 +161,7 @@
       <div id="fs-credits"></div>
       <p class="detail-overview" id="fs-overview"></p>
       <div class="format-badges" id="fs-formats"></div>
+      <div id="fs-seasons"></div>
       <div id="fs-tags"></div>
     </div>
   </div>

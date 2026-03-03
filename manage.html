@@ -34,6 +34,17 @@
   </nav>
 
   <div class="container mt-4 mb-5">
+
+    <!-- Mode Tabs -->
+    <ul class="nav nav-pills mb-3" id="manageModeTab" style="display:none">
+      <li class="nav-item">
+        <button class="nav-link active" data-manage-mode="movies">Movies</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" data-manage-mode="tv">TV Shows</button>
+      </li>
+    </ul>
+
     <h4 id="form-heading" class="mb-3">Add Movie</h4>
 
     <!-- Add / Edit Form -->
@@ -53,6 +64,7 @@
         <input type="hidden" id="field-genres">
         <input type="hidden" id="field-director">
         <input type="hidden" id="field-cast">
+        <input type="hidden" id="field-creator">
 
         <div class="col-md-6">
           <label class="form-label" for="field-title">Title</label>
@@ -113,6 +125,14 @@
 
 
 
+        <!-- Watched -->
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="field-watched">
+            <label class="form-check-label" for="field-watched">Watched</label>
+          </div>
+        </div>
+
         <!-- Rating -->
         <div class="col-md-6">
           <label class="form-label">Rating</label>
@@ -133,6 +153,37 @@
         <div class="col-12">
           <label class="form-label">Custom Fields <span class="text-secondary" style="font-size:.78rem">(from config.json)</span></label>
           <div id="custom-field-checks" class="d-flex flex-wrap gap-3"></div>
+        </div>
+
+        <!-- TV Show: Seasons builder (hidden for movies) -->
+        <div class="col-12" id="tv-seasons-section" style="display:none">
+          <label class="form-label">Seasons</label>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <label class="form-label mb-0" for="field-totalSeasons" style="font-size:.82rem;">Total Seasons</label>
+            <input type="number" class="form-control form-control-sm" id="field-totalSeasons" style="width:80px" min="1" max="99" value="1">
+            <button type="button" class="btn btn-sm btn-outline-light" id="btn-build-seasons">Build Seasons</button>
+          </div>
+          <div id="seasons-builder"></div>
+          <div class="mt-2">
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="boxset-physical-cb">
+              <label class="form-check-label" for="boxset-physical-cb" style="font-size:.82rem">Box Set — Physical</label>
+            </div>
+            <select class="form-select form-select-sm d-inline-block" id="boxset-physical-format" style="width:140px;display:none">
+              <option value="">None</option>
+              <option value="VCD">VCD</option>
+              <option value="DVD">DVD</option>
+              <option value="Blu-Ray">Blu-Ray</option>
+              <option value="UHD Blu-Ray">UHD Blu-Ray</option>
+              <option value="3D DVD">3D DVD</option>
+              <option value="3D Blu-Ray">3D Blu-Ray</option>
+            </select>
+            <div class="form-check form-check-inline ms-3">
+              <input class="form-check-input" type="checkbox" id="boxset-digital-cb">
+              <label class="form-check-label" for="boxset-digital-cb" style="font-size:.82rem">Box Set — Digital</label>
+            </div>
+            <div id="boxset-digital-formats" class="d-inline-flex flex-wrap gap-2 mt-1" style="display:none"></div>
+          </div>
         </div>
       </div>
     </form>
