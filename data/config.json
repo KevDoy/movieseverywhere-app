@@ -3,5 +3,6 @@
   "posterMode": "local",
   "tmdbImageBase": "https://image.tmdb.org/t/p/w500",
   "customFields": [],
-  "featured": true
+  "featured": true,
+  "tvShows": false
 }
