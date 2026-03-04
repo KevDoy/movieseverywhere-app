@@ -130,11 +130,43 @@ const App = (() => {
     }
 
     toggle.querySelectorAll('.me-mode-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
         const mode = btn.dataset.mode;
+        const isMobile = window.innerWidth < 768;
+
+        if (isMobile) {
+          if (!toggle.classList.contains('mode-expanded')) {
+            // Collapsed → expand to reveal options
+            toggle.classList.add('mode-expanded');
+            // Collapse search if it's open
+            const sw = document.getElementById('meSearch');
+            if (sw && !sw.classList.contains('collapsed')) {
+              sw.classList.add('collapsed');
+              const mb = document.getElementById('mobile-search-box');
+              if (mb) mb.blur();
+            }
+            e.stopPropagation();
+            return;
+          }
+          // Expanded → select and collapse
+          if (mode !== currentMode) {
+            switchMode(mode);
+          }
+          toggle.classList.remove('mode-expanded');
+          return;
+        }
+
+        // Desktop: original behavior
         if (mode === currentMode) return;
         switchMode(mode);
       });
+    });
+
+    // Close mode toggle on outside tap (mobile)
+    document.addEventListener('click', (e) => {
+      if (window.innerWidth < 768 && toggle.classList.contains('mode-expanded') && !toggle.contains(e.target)) {
+        toggle.classList.remove('mode-expanded');
+      }
     });
   }
 
@@ -1047,18 +1079,37 @@ const App = (() => {
       });
     }
 
+    // ---- Start search collapsed on mobile, mode toggle expanded ----
+    if (window.innerWidth < 768 && searchWrap) {
+      searchWrap.classList.add('collapsed');
+    }
+    if (window.innerWidth < 768) {
+      const modeToggle = document.getElementById('modeToggle');
+      if (modeToggle) modeToggle.classList.add('mode-expanded');
+    }
+
     // ---- Search: expand / collapse ----
     let searchHasInput = false;
 
     function expandSearch() {
       if (!searchWrap) return;
       searchWrap.classList.remove('collapsed');
+      // On mobile, collapse mode toggle to avoid overlap
+      if (window.innerWidth < 768) {
+        const modeToggle = document.getElementById('modeToggle');
+        if (modeToggle) modeToggle.classList.remove('mode-expanded');
+      }
     }
 
     function collapseSearch() {
       if (!searchWrap || searchHasInput) return;
       searchWrap.classList.add('collapsed');
       mobileSearchBox?.blur();
+      // On mobile at top, re-expand mode toggle
+      if (window.innerWidth < 768 && window.scrollY <= 10) {
+        const modeToggle = document.getElementById('modeToggle');
+        if (modeToggle) modeToggle.classList.add('mode-expanded');
+      }
     }
 
     if (searchCollapsedBtn) {
@@ -1099,7 +1150,18 @@ const App = (() => {
           renderGrid();
           mobileSearchBox.focus();
         } else {
-          mobileSearchBox.focus();
+          // Empty field: collapse on mobile, focus on desktop
+          if (window.innerWidth < 768) {
+            searchWrap.classList.add('collapsed');
+            mobileSearchBox?.blur();
+            // Re-expand mode toggle if at top
+            if (window.scrollY <= 10) {
+              const modeToggle = document.getElementById('modeToggle');
+              if (modeToggle) modeToggle.classList.add('mode-expanded');
+            }
+          } else {
+            mobileSearchBox.focus();
+          }
         }
       });
     }
@@ -1118,7 +1180,10 @@ const App = (() => {
             isScrolled = false;
             if (filterBar) filterBar.classList.remove('hidden');
             if (activeFilterPill) activeFilterPill.classList.remove('visible');
-            expandSearch();
+            // Only auto-expand search on desktop
+            if (window.innerWidth >= 768) {
+              expandSearch();
+            }
           }
         }
       });
@@ -1145,19 +1210,22 @@ const App = (() => {
           if (!searchFocused) collapseSearch();
           // Close sort bubble on scroll
           if (sortBubble) sortBubble.classList.remove('expanded');
-          // Hide mode toggle on mobile
+          // Collapse mode toggle on scroll (mobile)
           const modeToggle = document.querySelector('.me-mode-toggle');
-          if (modeToggle) modeToggle.classList.add('scroll-hidden');
+          if (modeToggle) modeToggle.classList.remove('mode-expanded');
         } else if (scrollY <= 10 && isScrolled) {
           // Returned to top — but not while user is actively searching
           if (searchFocused || searchHasInput) return;
           isScrolled = false;
           if (filterBar) filterBar.classList.remove('hidden');
           if (activeFilterPill) activeFilterPill.classList.remove('visible');
-          expandSearch();
-          // Show mode toggle again
+          // Only auto-expand search on desktop
+          if (window.innerWidth >= 768) {
+            expandSearch();
+          }
+          // Re-expand mode toggle on mobile
           const modeToggle = document.querySelector('.me-mode-toggle');
-          if (modeToggle) modeToggle.classList.remove('scroll-hidden');
+          if (modeToggle && window.innerWidth < 768) modeToggle.classList.add('mode-expanded');
         } else if (isScrolled && !searchHasInput && !searchFocused) {
           // Re-collapse search if user scrolls without typing
           collapseSearch();

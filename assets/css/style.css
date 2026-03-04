@@ -1224,13 +1224,13 @@ a.format-badge-link:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   border: none;
   background: rgba(200, 200, 200, 0.18);
   color: #ffffff;
-  font-size: 1.1rem;
+  font-size: 1.375rem;
   cursor: pointer;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
@@ -1252,9 +1252,9 @@ a.format-badge-link:hover {
 
 @media (min-width: 768px) {
   .me-search-submit {
-    width: 44px;
-    height: 44px;
-    font-size: 1.15rem;
+    width: 55px;
+    height: 55px;
+    font-size: 1.44rem;
   }
 }
 
@@ -1270,14 +1270,14 @@ a.format-badge-link:hover {
   position: absolute;
   right: 24px;
   bottom: 0;
-  width: 48px;
-  height: 48px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   color: #ffffff;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -1308,9 +1308,9 @@ a.format-badge-link:hover {
 @media (min-width: 768px) {
   .me-search-collapsed {
     right: 48px;
-    width: 52px;
-    height: 52px;
-    font-size: 1.3rem;
+    width: 65px;
+    height: 65px;
+    font-size: 1.625rem;
   }
 }
 
@@ -1379,10 +1379,76 @@ a.format-badge-link:hover {
 }
 
 @media (max-width: 767.98px) {
-  .me-mode-toggle.scroll-hidden {
+  /* Mobile: Mode toggle becomes fixed bottom-left icon-only bubble */
+  .me-mode-toggle {
+    position: fixed;
+    bottom: 28px;
+    left: 24px;
+    z-index: 1050;
+    margin-left: 0;
+    transition: padding 0.3s cubic-bezier(.4,0,.2,1),
+                opacity 0.25s ease,
+                transform 0.25s ease;
+  }
+
+  .me-mode-label {
+    display: none;
+  }
+
+  .me-mode-btn {
+    width: 54px;
+    height: 54px;
+    padding: 0;
+    gap: 0;
+    font-size: 1.4rem;
+    justify-content: center;
+    transition: color 0.2s, background 0.2s,
+                width 0.3s cubic-bezier(.4,0,.2,1),
+                height 0.3s cubic-bezier(.4,0,.2,1),
+                opacity 0.2s,
+                margin 0.3s cubic-bezier(.4,0,.2,1);
+  }
+
+  .me-mode-btn i {
+    font-size: 1.5rem;
+  }
+
+  /* Collapsed: hide non-active */
+  .me-mode-toggle:not(.mode-expanded) .me-mode-btn:not(.active) {
+    width: 0;
+    overflow: hidden;
     opacity: 0;
-    transform: scale(0.85);
-    pointer-events: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Expanded */
+  .me-mode-toggle.mode-expanded {
+    padding: 4px 6px;
+  }
+
+  .me-mode-toggle.mode-expanded .me-mode-btn {
+    width: 55px;
+    height: 55px;
+    font-size: 1.5rem;
+    opacity: 1;
+  }
+
+  .me-mode-toggle.mode-expanded .me-mode-btn i {
+    font-size: 1.5rem;
+  }
+
+  .me-mode-toggle.mode-expanded .me-mode-btn + .me-mode-btn {
+    margin-left: 2px;
+  }
+
+  .me-mode-toggle.mode-expanded .me-mode-btn.active {
+    background: rgba(200, 200, 200, 0.2);
+  }
+
+  /* Search: add left padding to clear mode toggle */
+  .me-search {
+    padding-left: 96px;
   }
 }
 
